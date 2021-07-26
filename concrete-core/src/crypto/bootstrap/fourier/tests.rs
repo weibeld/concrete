@@ -1,9 +1,13 @@
 use std::fmt::Debug;
 
-use concrete_commons::{
-    CastFrom, CastInto, DispersionParameter, LogStandardDev, Numeric, Variance,
-};
 use concrete_npe as npe;
+
+use concrete_commons::dispersion::{DispersionParameter, LogStandardDev, Variance};
+use concrete_commons::numeric::{CastFrom, CastInto, Numeric};
+use concrete_commons::parameters::{
+    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, LweSize,
+    PlaintextCount, PolynomialSize,
+};
 
 use crate::crypto::bootstrap::fourier::constant_sample_extract;
 use crate::crypto::bootstrap::{Bootstrap, FourierBootstrapKey, StandardBootstrapKey};
@@ -12,10 +16,7 @@ use crate::crypto::glwe::GlweCiphertext;
 use crate::crypto::lwe::LweCiphertext;
 use crate::crypto::secret::generators::{EncryptionRandomGenerator, SecretRandomGenerator};
 use crate::crypto::secret::{GlweSecretKey, LweSecretKey};
-use crate::crypto::{GlweDimension, LweDimension, LweSize, PlaintextCount};
-use crate::math::decomposition::{DecompositionBaseLog, DecompositionLevelCount};
 use crate::math::fft::Complex64;
-use crate::math::polynomial::PolynomialSize;
 use crate::math::random::RandomGenerator;
 use crate::math::tensor::{AsMutSlice, AsMutTensor, AsRefSlice, AsRefTensor, IntoTensor, Tensor};
 use crate::math::torus::UnsignedTorus;
@@ -115,18 +116,18 @@ fn test_bootstrap_noise<T: UnsignedTorus + npe::Cross>() {
         let output_variance = <T as npe::Cross>::bootstrap(
             lwe_dimension.0,
             rlwe_dimension.0,
-            level.0,
-            base_log.0,
             polynomial_size.0,
+            base_log.0,
+            level.0,
             f64::powi(std.get_standard_dev(), 2),
         );
         // if we have enough test, we check that the obtain distribution is the same
         // as the theoretical one
         // if not, it only tests if the noise remains in the 99% confidence interval
         if nb_test < 7 {
-            assert_delta_std_dev(&msg, &new_msg, Variance::from_variance(output_variance));
+            assert_delta_std_dev(&msg, &new_msg, Variance(output_variance));
         } else {
-            assert_noise_distribution(&msg, &new_msg, Variance::from_variance(output_variance));
+            assert_noise_distribution(&msg, &new_msg, Variance(output_variance));
         }
     }
 }
@@ -217,14 +218,15 @@ fn test_external_product_generic<T: UnsignedTorus + npe::Cross>() {
 
             rlwe_sk.decrypt_glwe(&mut new_messages, &res);
 
-            // call the NPE to find the theoritical amount of noise after the external product
+            // call the NPE to find the theoritical amount of noise after the external
+            // product
             let var_trgsw = std_dev_bsk.get_variance();
             let var_trlwe = std_dev_rlwe.get_variance();
             let output_variance = <T as npe::Cross>::external_product(
                 rlwe_dimension.0,
-                level.0,
-                base_log.0,
                 polynomial_size,
+                base_log.0,
+                level.0,
                 var_trgsw,
                 var_trlwe,
             );
@@ -601,7 +603,7 @@ where
             * 2_f64.powi(<T as Numeric>::BITS as i32 - log_degree - 1))
             as i64;
         if (i64::cast_from(m0.0) - i64::cast_from(m1.0)).abs() > delta_max {
-            panic!("{:?} != {:?} +- {:?}", m0.0, m1.0, delta_max);
+            panic!("{:?} != {:?} +- {:?}", m0, m1, delta_max);
         }
     }
 }
